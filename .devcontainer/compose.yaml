@@ -1,0 +1,10 @@
+services:
+  utakta_rust_discord_bot:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ../workspace:/workspace
+    working_dir: /workspace
+    command: /bin/sh
+    tty: true
