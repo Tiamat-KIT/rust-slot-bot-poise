@@ -69,11 +69,13 @@ async fn slot_play(ctx: Context<'_>) -> Result<(),Error> {
     let slot_reach_second_result = second == third;
 
     if slot_reach_first_result {
-        ctx.say(format!("{} {} リーチ！",first,second)).await?;
+        ctx.say(format!("{} {} リーチ！ 【リーチボーナス +5pt】",first,second)).await?;
+        *point += 5;
     }
 
     if slot_reach_second_result {
-        ctx.say(format!("{} {} リーチ！",second,third)).await?;
+        ctx.say(format!("{} {} リーチ！ 【リーチボーナス +5pt】 ",second,third)).await?;
+        *point += 5;
     }
 
     time::sleep(Duration::new(3, 0)).await;
@@ -84,6 +86,10 @@ async fn slot_play(ctx: Context<'_>) -> Result<(),Error> {
     }else {
         format!("{} {} {} 揃わなかった...おつらいね...",first,second,third)
     };
+
+    if slot_result {
+        *point += 20;
+    }
     ctx.say(result).await?;
 
     Ok(())
