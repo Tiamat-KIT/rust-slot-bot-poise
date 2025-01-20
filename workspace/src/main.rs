@@ -1,21 +1,20 @@
-use std::{str, time::Duration};
+mod commands;
+
+use tokio::sync::Mutex;
 
 use anyhow::Context as _;
+use commands::*;
 use poise::serenity_prelude::{ClientBuilder, GatewayIntents};
-use serenity::{all::EventHandler, async_trait, futures::lock::Mutex};
+use serenity::{all::EventHandler, async_trait};
 use shuttle_runtime::SecretStore;
 use shuttle_serenity::ShuttleSerenity;
-use tokio::time;
 
-struct Data {
-    points: Mutex<u32>
-} // User data, which is stored and accessible in all command invocations
-type Error = Box<dyn std::error::Error + Send + Sync>;
-type Context<'a> = poise::Context<'a, Data, Error>;
+
 
 #[allow(unused)]
 struct Handler;
 
+<<<<<<< HEAD
 /// Responds with "world!"
 #[poise::command(slash_command)]
 async fn hello(ctx: Context<'_>) -> Result<(), Error> {
@@ -106,6 +105,8 @@ async fn show_point(ctx: Context<'_>) -> Result<(),Error> {
     ).await?;
     Ok(())
 }
+=======
+>>>>>>> 52d863931b3dd807009e1fde768b8768c3ad46af
 
 #[async_trait]
 impl EventHandler for Handler {
@@ -123,7 +124,7 @@ async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> ShuttleS
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
-            commands: vec![hello(),slot_play(),show_point()],
+            commands: vec![hello(),slot_play(),show_point(),developer_access()],
             event_handler: |#[allow(unused)] ctx,#[allow(unused)] event,#[allow(unused)] f_ctx,#[allow(unused)] data| {
                 Box::pin(async {
                     Ok(())
@@ -135,7 +136,7 @@ async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> ShuttleS
             Box::pin(async move {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 Ok(Data {
-                    points: Mutex::new(100)
+                    points: Mutex::new(500)
                 })
             })
         })
