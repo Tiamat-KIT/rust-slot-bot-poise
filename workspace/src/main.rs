@@ -98,7 +98,12 @@ async fn slot_play(ctx: Context<'_>) -> Result<(),Error> {
 // show your points
 #[poise::command(slash_command)]
 async fn show_point(ctx: Context<'_>) -> Result<(),Error> {
-    ctx.say(format!("{:#?}",ctx.data().points.try_lock().expect("エラー"))).await?;
+    ctx.say(
+        format!(
+            "{:#?}",
+            ctx.data().points.try_lock().expect("エラー")
+        )
+    ).await?;
     Ok(())
 }
 
