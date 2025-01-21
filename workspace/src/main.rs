@@ -1,112 +1,29 @@
 mod commands;
+mod utils;
+mod entities;
+mod migration;
+mod cron;
 
+
+use std::str::FromStr;
+
+use apalis::{layers::{retry::RetryPolicy, WorkerBuilderExt}, prelude::{WorkerBuilder, WorkerFactoryFn}};
+use cron::dairy_charge::dairy_charge;
+use sea_orm::SqlxPostgresConnector;
+use sea_orm_migration::prelude::*;
 use tokio::sync::Mutex;
-
+use crate::migration::migrator::Migrator;
 use anyhow::Context as _;
 use commands::*;
 use poise::serenity_prelude::{ClientBuilder, GatewayIntents};
 use serenity::{all::EventHandler, async_trait};
 use shuttle_runtime::SecretStore;
 use shuttle_serenity::ShuttleSerenity;
-
+use apalis_cron::{CronStream, Schedule};
 
 
 #[allow(unused)]
 struct Handler;
-
-<<<<<<< HEAD
-/// Responds with "world!"
-#[poise::command(slash_command)]
-async fn hello(ctx: Context<'_>) -> Result<(), Error> {
-    ctx.say("world!").await?;
-    Ok(())
-}
-
-// Add Player Points(Useable Guild Owner) ※実装中
-#[poise::command(slash_command)]
-async fn increase_point_to_user(
-    ctx: Context<'_>,
-    #[description = "Select User"] _user: Option<poise::serenity_prelude::User>,
-    #[description = "Add Point Val"]  _point: u32
-) -> Result<(), Error>{ 
-    ctx.say("正直これどうしたらいいかわかってないぞ...ごめんな...。").await?;
-    /* if point > 1000 {
-        ctx.say("あげすぎるとめちゃくちゃ打たれるゾ...").await?;
-    } */
-
-    Ok(())
-}
-
-// play slot game
-#[poise::command(slash_command)]
-async fn slot_play(ctx: Context<'_>) -> Result<(),Error> {
-    use rand::seq::SliceRandom;
-
-    ctx.defer().await?;
-
-    let mut point = ctx.data().points.lock().await;
-    if *point < 10 {
-        ctx.say("ポイントが足りません！貯めてから再チャレンジしてね！").await?;
-        return Ok(())
-    }
-
-    *point -= 10;
-    let mut slot_emojis:Vec<&str> = emojis::iter()
-        .map(|e| e.as_str())
-        .take(10)
-        .cycle()
-        .take(10 * 3)
-        .collect();
-    slot_emojis.shuffle(&mut rand::thread_rng());
-
-    let [first,second,third] = slot_emojis[..3]
-        .try_into()
-        .unwrap();
-
-
-    let slot_reach_first_result = first == second;
-    let slot_reach_second_result = second == third;
-
-    if slot_reach_first_result {
-        ctx.say(format!("{} {} リーチ！ 【リーチボーナス +5pt】",first,second)).await?;
-        *point += 5;
-    }
-
-    if slot_reach_second_result {
-        ctx.say(format!("{} {} リーチ！ 【リーチボーナス +5pt】 ",second,third)).await?;
-        *point += 5;
-    }
-
-    time::sleep(Duration::new(3, 0)).await;
-
-    let slot_result = slot_reach_first_result && slot_reach_first_result;
-    let result = if slot_result {
-        format!("{} {} {} 揃いました！嬉しいね！",first,second,third)
-    }else {
-        format!("{} {} {} 揃わなかった...おつらいね...",first,second,third)
-    };
-
-    if slot_result {
-        *point += 20;
-    }
-    ctx.say(result).await?;
-
-    Ok(())
-}
-
-// show your points
-#[poise::command(slash_command)]
-async fn show_point(ctx: Context<'_>) -> Result<(),Error> {
-    ctx.say(
-        format!(
-            "{:#?}",
-            ctx.data().points.try_lock().expect("エラー")
-        )
-    ).await?;
-    Ok(())
-}
-=======
->>>>>>> 52d863931b3dd807009e1fde768b8768c3ad46af
 
 #[async_trait]
 impl EventHandler for Handler {
@@ -116,15 +33,25 @@ impl EventHandler for Handler {
 }
 
 #[shuttle_runtime::main]
-async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> ShuttleSerenity {
+async fn main(
+    #[shuttle_runtime::Secrets] secret_store: SecretStore,
+    #[shuttle_shared_db::Postgres(
+        local_uri = "postgres://utakata:1336@postgres:5432/utakata_db"
+    )] pool: sqlx::PgPool ,
+) -> ShuttleSerenity {
+    
     // Get the discord token set in `Secrets.toml`
     let discord_token = secret_store
         .get("DISCORD_TOKEN")
         .context("'DISCORD_TOKEN' was not found")?;
 
+    let connection = SqlxPostgresConnector::from_sqlx_postgres_pool(pool.clone());  
+    Migrator::up(&connection, None).await.expect("Migration Error");
+    
+
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
-            commands: vec![hello(),slot_play(),show_point(),developer_access()],
+            commands: vec![hello(),slot_play(),show_point(),developer_access(),gift_point(),check_emoji()],
             event_handler: |#[allow(unused)] ctx,#[allow(unused)] event,#[allow(unused)] f_ctx,#[allow(unused)] data| {
                 Box::pin(async {
                     Ok(())
@@ -136,7 +63,7 @@ async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> ShuttleS
             Box::pin(async move {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 Ok(Data {
-                    points: Mutex::new(500)
+                    db: Mutex::from(connection)
                 })
             })
         })
@@ -147,5 +74,13 @@ async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> ShuttleS
         .await
         .map_err(shuttle_runtime::CustomError::new)?;
 
+    /* let schedule = Schedule::from_str("@daily").unwrap();
+    WorkerBuilder::new("dairy-charge")
+        .retry(RetryPolicy::retries(5))
+        .data(connection.clone())
+        .backend(CronStream::new(schedule))
+        .build_fn(dairy_charge)
+        .run().await; */
+        
     Ok(client.into())
 }

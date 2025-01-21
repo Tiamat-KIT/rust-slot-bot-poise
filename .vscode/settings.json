@@ -1,5 +1,5 @@
 {
     "debug.javascript.defaultRuntimeExecutable": {
-        "pwa-node": "/home/utakata-kit/.local/share/mise/shims/node"
+        "pwa-node": "c:\\users\\taito\\appdata\\local\\mise\\shims\\node"
     }
 }
