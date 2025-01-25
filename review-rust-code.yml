@@ -10,5 +10,8 @@ jobs:
         components: clippy
     - uses: giraffate/clippy-action@v1
       with:
+        clippy_flags: -- -Dwarnings
+        level: warning
         reporter: 'github-pr-review'
         github_token: ${{ secrets.GITHUB_TOKEN }}
+        workdir: "./workspace"
